@@ -48,6 +48,7 @@ Build the code and launch the ros node with rosbag data:
 ```bash
 $ cd VisualInertialOdometry
 $ catkin_make
+$ source devel/setup.bash
 $ roslaunch launch/mvsec_test.launch
 $ rosbag play mvsec_test.bag
 ```
