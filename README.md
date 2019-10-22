@@ -7,7 +7,7 @@ This project is designed for students to learn the front-end and back-end in a S
 
 ## References
 
-VINS-Mono: A Robust and Versatile Monocular Visual-Inertial State Estimator([PDF](https://ieeexplore.ieee.org/document/8421746))
+VINS-Mono: A Robust and Versatile Monocular Visual-Inertial State Estimator ([PDF](https://ieeexplore.ieee.org/document/8421746))
 
 IMU Preintegration on Manifold for Efficient Visual-Inertial Maximum-a-Posteriori Estimation ([PDF](http://www.roboticsproceedings.org/rss11/p06.pdf))
 
