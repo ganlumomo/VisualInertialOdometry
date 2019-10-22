@@ -57,6 +57,8 @@ Test data can be downloaded here: [mvsec_test.bag](https://drive.google.com/file
 
 <img src="https://raw.githubusercontent.com/ganlumomo/VisualInertialOdometry/master/github/expected_result.png">
 
+Write one-page project summary about your implementation and result.
+
 ## References
 
 VINS-Mono: A Robust and Versatile Monocular Visual-Inertial State Estimator ([PDF](https://ieeexplore.ieee.org/document/8421746))
