@@ -17,8 +17,11 @@ LIST(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 find_package(PCL REQUIRED)
 find_package(Boost REQUIRED timer)
 find_package(GTSAM REQUIRED)
+find_package(MKL REQUIRED)
+find_package(TBB REQUIRED)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -fsee -fomit-frame-pointer -fno-signed-zeros -fno-math-errno -funroll-loops")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -O3 -fsee -fomit-frame-pointer -fno-signed-zeros -fno-math-errno -funroll-loops")
+#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g3 -Wall")
 SET(EIGEN_INCLUDE_DIR /usr/include/eigen3)
 
 ## System dependencies are found with CMake's conventions
@@ -128,6 +131,7 @@ include_directories(
   ${catkin_INCLUDE_DIRS}
   ${EIGEN_INCLUDE_DIR}
   ${PCL_INCLUDE_DIRS}
+  ${MKL_INCLUDE_DIRS}
 )
 
 ## Declare a C++ library
@@ -143,7 +147,7 @@ include_directories(
 ## Declare a C++ executable
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
-add_executable(estimator
+add_executable(vio
   src/main_estimator.cpp
   src/GraphSolver.cpp
   src/GraphSolver_IMU.cpp
@@ -161,9 +165,11 @@ add_executable(estimator
 # add_dependencies(${PROJECT_NAME}_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Specify libraries to link a library or executable target against
-target_link_libraries(estimator
+target_link_libraries(vio
   ${catkin_LIBRARIES}
   ${MKL_LIBRARIES}
+  tbb
+  tbbmalloc
   gtsam
   gtsam_unstable
 )

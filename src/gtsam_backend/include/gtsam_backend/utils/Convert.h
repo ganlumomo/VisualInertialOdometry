@@ -1,10 +1,7 @@
-/* Author: Lu Gan, ganlu@umich.edu */
-#ifndef UTILS_ROS_UTILS_H_
-#define UTILS_ROS_UTILS_H_
+#pragma once
 
 #include <geometry_msgs/PoseWithCovariance.h>
-
-namespace utils {
+#include <gtsam/geometry/Pose3.h>
 
 void ToPose(const gtsam::Pose3& i_pose, geometry_msgs::Pose& pose) {
   pose.orientation.x = i_pose.rotation().toQuaternion().x();
@@ -59,7 +56,3 @@ void ToPoseWithCovariance(const gtsam::Pose3& i_pose,
   pose.covariance[34] = covariance(5,4);
   pose.covariance[35] = covariance(5,5);
 }
-
-} // namespace utils
-
-#endif // UTILS_ROS_UTILS_H_

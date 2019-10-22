@@ -1,6 +1,4 @@
-/* Author: Lu Gan, ganlu@umich.edu */
-#ifndef GTSAM_STATE_H_
-#define GTSAM_STATE_H_
+#pragma once
 
 #include <gtsam/geometry/Pose3.h>
 #include <gtsam/navigation/ImuBias.h>
@@ -103,5 +101,3 @@ class State {
 }; // State class
 
 } // namespace gtsam
-
-#endif // GTSAM_STATE_H_
