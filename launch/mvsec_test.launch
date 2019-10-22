@@ -23,7 +23,7 @@
 
       <param name="fixedId"  type="string" value="world" />
       <rosparam param="gravity">[0.0, 0.0, 9.81007]</rosparam>
-      <param name="imuWait"  type="int" value="0" />
+      <param name="imuWait"  type="int" value="1096" />
       <param name="featWait" type="int" value="5" />
       
       <!-- Rotation and Translation from camera frame to IMU frame -->

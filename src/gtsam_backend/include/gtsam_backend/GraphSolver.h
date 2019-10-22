@@ -1,44 +1,31 @@
-#pragma
+#pragma once
 
 #include <mutex>
 #include <thread>
 #include <deque>
-#include <fstream>
 #include <unordered_map>
 
-#include <ros/ros.h>
-#include <Eigen/Eigen>
-#include <Eigen/Dense>
-#include <pcl/io/pcd_io.h>
-#include <boost/date_time/posix_time/posix_time.hpp>
-#include <gtsam/nonlinear/Values.h>
-#include <gtsam/inference/Symbol.h>
-#include <gtsam/nonlinear/Marginals.h>
+// Graphs
 #include <gtsam/nonlinear/NonlinearFactorGraph.h>
-#include <gtsam/nonlinear/LevenbergMarquardtOptimizer.h>
-#include <gtsam/navigation/CombinedImuFactor.h>
-#include <gtsam/navigation/ImuFactor.h>
+#include <gtsam/inference/Symbol.h>
+#include <gtsam/nonlinear/Values.h>
 #include <gtsam/nonlinear/ISAM2.h>
-#include <gtsam_unstable/nonlinear/BatchFixedLagSmoother.h>
-#include <gtsam_unstable/nonlinear/IncrementalFixedLagSmoother.h>
 
-#include "utils/State.h"
-#include "utils/Config.h"
-
+// Factors
 #include <gtsam/slam/PriorFactor.h>
+#include <gtsam/navigation/CombinedImuFactor.h>
 #include <gtsam/slam/ProjectionFactor.h>
 #include <gtsam/slam/SmartProjectionPoseFactor.h>
-#include <gtsam/slam/BetweenFactor.h>
 
-using namespace std;
-using namespace gtsam;
+#include "utils/Config.h"
+#include "utils/State.h"
 
 using gtsam::symbol_shorthand::X; // Pose3 (x,y,z,r,p,y)
 using gtsam::symbol_shorthand::V; // Vel   (xdot,ydot,zdot)
 using gtsam::symbol_shorthand::B; // Bias  (ax,ay,az,gx,gy,gz)
 
 typedef std::vector<std::pair<double, gtsam::State>> Trajectory;
-typedef SmartProjectionPoseFactor<Cal3_S2> SmartFactor;
+typedef gtsam::SmartProjectionPoseFactor<gtsam::Cal3_S2> SmartFactor;
 
 class GraphSolver {
 public:
@@ -50,13 +37,13 @@ public:
     this->graph_new = new gtsam::NonlinearFactorGraph();
     
     // ISAM2 solver
-    ISAM2Params isam_params;
+    gtsam::ISAM2Params isam_params;
     isam_params.relinearizeThreshold = 0.01;
     isam_params.relinearizeSkip = 1;
     isam_params.cacheLinearizedFactors = false;
     isam_params.enableDetailedResults = true;
     isam_params.print();
-    this->isam2 = new ISAM2(isam_params);
+    this->isam2 = new gtsam::ISAM2(isam_params);
   }
 
   /// Will return true if the system is initialized
@@ -72,17 +59,17 @@ public:
   void optimize();
   
   /// This function returns the current state, return origin if we have not initialized yet
-  State get_state(size_t ct) {
+  gtsam::State get_state(size_t ct) {
     // Ensure valid states
     assert (ct <= ct_state);
     if (!values_initial.exists(X(ct)))
-      return State();
-    return State(values_initial.at<Pose3>(  X(ct)),
-                 values_initial.at<Vector3>(V(ct)),
-                 values_initial.at<Bias>(   B(ct)));
+      return gtsam::State();
+    return gtsam::State(values_initial.at<gtsam::Pose3>(  X(ct)),
+                 values_initial.at<gtsam::Vector3>(V(ct)),
+                 values_initial.at<gtsam::Bias>(   B(ct)));
   }
 
-  State get_current_state() { 
+  gtsam::State get_current_state() { 
     return get_state(ct_state);
   }
 
@@ -113,7 +100,7 @@ public:
       std::vector<Eigen::Vector3d> features;
       // Else loop through the features and return them
       for (auto element : measurement_smart_lookup_left) {
-       boost::optional<Point3> point = element.second->point(values_initial);
+       boost::optional<gtsam::Point3> point = element.second->point(values_initial);
        if (point)
          features.push_back(*point);
       }
@@ -121,34 +108,29 @@ public:
   }
 
 private:
-
-  /// Function which will try to initalize our graph using the current IMU measurements
+  /// Functions
+  // Function which will try to initalize our graph using the current IMU measurements
   void initialize(double timestamp);
 
   // ******************************* TODO ********************************* //
   bool set_imu_preintegration(const gtsam::State& prior_state);
 
-  /// Function that will compound the GTSAM preintegrator to get discrete preintegration measurement
-  CombinedImuFactor create_imu_factor(double updatetime, gtsam::Values& values_initial);
+  // Function that will compound the GTSAM preintegrator to get discrete preintegration measurement
+  gtsam::CombinedImuFactor create_imu_factor(double updatetime, gtsam::Values& values_initial);
 
-  /// Function will get the predicted Navigation State based on this generated measurement 
-  State get_predicted_state(gtsam::Values& values_initial);
+  // Function will get the predicted Navigation State based on this generated measurement 
+  gtsam::State get_predicted_state(gtsam::Values& values_initial);
 
-  /// Function that will reset imu preintegration
+  // Function that will reset imu preintegration
   void reset_imu_integration();
 
-  /// Smart feature measurements
+  // Smart feature measurements
   void process_feat_smart(double timestamp, std::vector<uint> leftids, std::vector<Eigen::Vector2d> leftuv);
   // ******************************* END TODO ********************************* //
 
-  /// Imu Preintegration
-  gtsam::PreintegratedCombinedMeasurements* preint_gtsam;
-
+  /// Members
   /// Config object (has all sensor noise values)
   Config* config;
-
-  // ISAM2 solvers
-  ISAM2* isam2;
 
   // New factors that have not been optimized yet
   gtsam::NonlinearFactorGraph* graph_new;
@@ -161,6 +143,9 @@ private:
   
   // All created nodes
   gtsam::Values values_initial;
+
+  // ISAM2 solvers
+  gtsam::ISAM2* isam2;
 
   // Current ID of state and features
   size_t ct_state = 0;
@@ -178,6 +163,9 @@ private:
   std::deque<Eigen::Vector3d> imu_linaccs;
   std::deque<Eigen::Vector3d> imu_angvel;
   std::deque<Eigen::Vector4d> imu_orientation;
+
+  // Imu Preintegration
+  gtsam::PreintegratedCombinedMeasurements* preint_gtsam;
 
   /// Lookup tables for features
   std::mutex features_mutex;

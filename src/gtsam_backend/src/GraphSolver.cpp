@@ -1,124 +1,106 @@
 #include <math.h>
-#include <iomanip>
+#include <ros/ros.h>
+
 #include "GraphSolver.h"
 
-using namespace std;
-using namespace gtsam;
 
-
-/**
- * This function handles new IMU measurements.
- * We just append this to our IMU vectors which will be used to create a preintegrated measurement later
- */
 void GraphSolver::addmeasurement_imu(double timestamp, Eigen::Vector3d linacc, Eigen::Vector3d angvel, Eigen::Vector4d orientation) {
+  // Request access to the imu measurements
+  std::unique_lock<std::mutex> lock(imu_mutex);
 
-    {
-        // Request access to the imu measurements
-        std::unique_lock<std::mutex> lock(imu_mutex);
-
-        // Append this new measurement to the array
-        imu_times.push_back(timestamp);
-        imu_linaccs.push_back(linacc);
-        imu_angvel.push_back(angvel);
-        imu_orientation.push_back(orientation);
-    }
+  // Append this new measurement to the array
+  imu_times.push_back(timestamp);
+  imu_linaccs.push_back(linacc);
+  imu_angvel.push_back(angvel);
+  imu_orientation.push_back(orientation);
 
 }
-
 
 void GraphSolver::addmeasurement_uv(double timestamp, std::vector<uint> leftids, std::vector<Eigen::Vector2d> leftuv) {
 
   // Return if the node already exists in the graph
-    if (ct_state_lookup.find(timestamp) != ct_state_lookup.end())
+  if (ct_state_lookup.find(timestamp) != ct_state_lookup.end())
+    return;
+
+  // Return if we don't actually have any plane measurements
+  if(leftids.empty())
       return;
 
-    // Return if we don't actually have any plane measurements
-    if(leftids.empty())
-        return;
+  // Return if we don't actually have any IMU measurements
+  if(imu_times.size() < 2)
+      return;
 
-    // Return if we don't actually have any IMU measurements
-    if(imu_times.size() < 2)
-        return;
+  // We should try to initialize now
+  // Or add the current a new IMU measurement and state!
+  if(!systeminitalized) {
 
-    // We should try to initialize now
-    // Or add the current a new IMU measurement and state!
-    if(!systeminitalized) {
+      initialize(timestamp);
 
-        initialize(timestamp);
+      // Return if we have not initialized the system yet
+      if(!systeminitalized)
+          return;
 
-        // Return if we have not initialized the system yet
-        if(!systeminitalized)
-            return;
+  } else {
 
-    } else {
+      // Forster2 discrete preintegration
+      gtsam::CombinedImuFactor imuFactor = create_imu_factor(timestamp, values_initial);
+      graph_new->add(imuFactor);
+      graph->add(imuFactor);
 
-        //==========================================================================
-        // PREINTEGRATION IMU FACTORS
-        //==========================================================================
+      // Original models
+      gtsam::State newstate = get_predicted_state(values_initial);
 
-        // Forster2 discrete preintegration
-        CombinedImuFactor imuFactor = create_imu_factor(timestamp, values_initial);
-        graph_new->add(imuFactor);
-        graph->add(imuFactor);
+      // Move node count forward in time
+      ct_state++;
 
-        // Original models
-        State newstate = get_predicted_state(values_initial);
+      // Append to our node vectors
+      values_new.insert(    X(ct_state), newstate.pose());
+      values_new.insert(    V(ct_state), newstate.v());
+      values_new.insert(    B(ct_state), newstate.b());
+      values_initial.insert(X(ct_state), newstate.pose());
+      values_initial.insert(V(ct_state), newstate.v());
+      values_initial.insert(B(ct_state), newstate.b());
 
-        // Move node count forward in time
-        ct_state++;
+      // Add ct state to map
+      ct_state_lookup[timestamp] = ct_state;
+      timestamp_lookup[ct_state] = timestamp;
+  }
 
-        // Append to our node vectors
-        values_new.insert(X(ct_state), newstate.pose());
-        values_new.insert(V(ct_state), newstate.v());
-        values_new.insert(B(ct_state), newstate.b());
-        values_initial.insert(X(ct_state), newstate.pose());
-        values_initial.insert(V(ct_state), newstate.v());
-        values_initial.insert(B(ct_state), newstate.b());
+  // Assert our vectors are equal (note will need to remove top one eventually)
+  assert(leftids.size() == leftuv.size());
 
-        // Add ct state to map
-        ct_state_lookup[timestamp] = ct_state;
-        timestamp_lookup[ct_state] = timestamp;
-    }
+  // Request access
+  std::unique_lock<std::mutex> features_lock(features_mutex);
 
-
-    // Assert our vectors are equal (note will need to remove top one eventually)
-    assert(leftids.size() == leftuv.size());
-
-    // Request access
-    std::unique_lock<std::mutex> features_lock(features_mutex);
-
-    // If we are using inverse depth, then lets call on it
-    process_feat_smart(timestamp, leftids, leftuv);
+  // If we are using inverse depth, then lets call on it
+  process_feat_smart(timestamp, leftids, leftuv);
 }
-
-
 
 void GraphSolver::optimize() {
 
-    // Return if not initialized
-    if(!systeminitalized && ct_state < 2)
-        return;
+  // Return if not initialized
+  if(!systeminitalized && ct_state < 2)
+      return;
 
-    // Perform smoothing update
-    try {
-      ISAM2Result result = isam2->update(*graph_new, values_new);
-      values_initial = isam2->calculateEstimate();
-    } catch(gtsam::IndeterminantLinearSystemException &e) {
-        ROS_ERROR("FORSTER2 gtsam indeterminate linear system exception!");
-        cerr << e.what() << endl;
-        exit(EXIT_FAILURE);
-    }
+  // Perform smoothing update
+  try {
+    gtsam::ISAM2Result result = isam2->update(*graph_new, values_new);
+    values_initial = isam2->calculateEstimate();
+  } catch(gtsam::IndeterminantLinearSystemException &e) {
+      ROS_ERROR("FORSTER2 gtsam indeterminate linear system exception!");
+      std::cerr << e.what() << std::endl;
+      exit(EXIT_FAILURE);
+  }
 
-    // Remove the used up nodes
-    values_new.clear();
+  // Remove the used up nodes
+  values_new.clear();
 
-    // Remove the used up factors
-    graph_new->resize(0);
+  // Remove the used up factors
+  graph_new->resize(0);
 
-    // reset imu preintegration
-    reset_imu_integration();
+  // reset imu preintegration
+  reset_imu_integration();
 }
-
 
 void GraphSolver::initialize(double timestamp) {
     
@@ -127,43 +109,35 @@ void GraphSolver::initialize(double timestamp) {
     return;
     
   // Wait for enough IMU readings if we initialize from rest
-  if (imu_times.size() < 1096)
+  if (imu_times.size() < config->imuWait)
     return;
   
-  //==========================================================================
-  // START INITIALIZE!
-  //==========================================================================
-
   // Reading from launch file
-  Vector4 q_GtoI = config->prior_qGtoI;
-  Vector3 p_IinG = config->prior_pIinG;
-  Vector3 v_IinG = config->prior_vIinG;
-  Vector3 ba = config->prior_ba;
-  Vector3 bg = config->prior_bg;
+  gtsam::Vector4 q_GtoI = config->prior_qGtoI;
+  gtsam::Vector3 p_IinG = config->prior_pIinG;
+  gtsam::Vector3 v_IinG = config->prior_vIinG;
+  gtsam::Vector3 ba = config->prior_ba;
+  gtsam::Vector3 bg = config->prior_bg;
     
-  //==========================================================================
-  // CREATE PRIOR FACTORS AND INITALIZE GRAPHS
-  //==========================================================================
-
   // Create prior factor and add it to the graph
   gtsam::State prior_state = gtsam::State(gtsam::Pose3(gtsam::Quaternion(q_GtoI(3), q_GtoI(0), q_GtoI(1), q_GtoI(2)), p_IinG),
-                                          v_IinG, Bias(ba, bg)); // gtsam::Quaternion(w, x, y, z)
-  auto pose_noise = noiseModel::Diagonal::Sigmas((Vector(6) << Vector3::Constant(config->sigma_prior_rotation),
-                                                               Vector3::Constant(config->sigma_prior_translation)).finished());
-  auto v_noise = noiseModel::Isotropic::Sigma(3, config->sigma_velocity);
-  auto b_noise = noiseModel::Isotropic::Sigma(6, config->sigma_bias);
+                                          v_IinG, gtsam::Bias(ba, bg)); // gtsam::Quaternion(w, x, y, z)
+  auto pose_noise = gtsam::noiseModel::Diagonal::Sigmas((gtsam::Vector(6) << gtsam::Vector3::Constant(config->sigma_prior_rotation),
+                                                         gtsam::Vector3::Constant(config->sigma_prior_translation)).finished());
+  auto v_noise = gtsam::noiseModel::Isotropic::Sigma(3, config->sigma_velocity);
+  auto b_noise = gtsam::noiseModel::Isotropic::Sigma(6, config->sigma_bias);
 
-  graph_new->add(PriorFactor<Pose3>(  X(ct_state), prior_state.pose(), pose_noise));
-  graph_new->add(PriorFactor<Vector3>(V(ct_state), prior_state.v(),    v_noise));
-  graph_new->add(PriorFactor<Bias>(   B(ct_state), prior_state.b(),    b_noise));
-  graph->add(PriorFactor<Pose3>(  X(ct_state), prior_state.pose(), pose_noise));
-  graph->add(PriorFactor<Vector3>(V(ct_state), prior_state.v(),    v_noise));
-  graph->add(PriorFactor<Bias>(   B(ct_state), prior_state.b(),    b_noise));
+  graph_new->add(gtsam::PriorFactor<gtsam::Pose3>(  X(ct_state), prior_state.pose(), pose_noise));
+  graph_new->add(gtsam::PriorFactor<gtsam::Vector3>(V(ct_state), prior_state.v(),    v_noise));
+  graph_new->add(gtsam::PriorFactor<gtsam::Bias>(   B(ct_state), prior_state.b(),    b_noise));
+  graph->add(gtsam::PriorFactor<gtsam::Pose3>(      X(ct_state), prior_state.pose(), pose_noise));
+  graph->add(gtsam::PriorFactor<gtsam::Vector3>(    V(ct_state), prior_state.v(),    v_noise));
+  graph->add(gtsam::PriorFactor<gtsam::Bias>(       B(ct_state), prior_state.b(),    b_noise));
 
   // Add initial state to the graph
-  values_new.insert(X(ct_state), prior_state.pose());
-  values_new.insert(V(ct_state), prior_state.v());
-  values_new.insert(B(ct_state), prior_state.b());
+  values_new.insert(    X(ct_state), prior_state.pose());
+  values_new.insert(    V(ct_state), prior_state.v());
+  values_new.insert(    B(ct_state), prior_state.b());
   values_initial.insert(X(ct_state), prior_state.pose());
   values_initial.insert(V(ct_state), prior_state.v());
   values_initial.insert(B(ct_state), prior_state.b());
@@ -177,7 +151,6 @@ void GraphSolver::initialize(double timestamp) {
   imu_linaccs.erase(imu_linaccs.begin(), imu_linaccs.end() - 1);
   imu_angvel.erase(imu_angvel.begin(), imu_angvel.end() - 1);
   imu_orientation.erase(imu_orientation.begin(), imu_orientation.end() - 1);
-
 
   if (set_imu_preintegration(prior_state))
     systeminitalized = true;

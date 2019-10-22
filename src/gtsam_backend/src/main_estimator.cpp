@@ -126,31 +126,31 @@ void setup_config(ros::NodeHandle& nh, Config* config) {
 
     // Debug print to screen for the user
     Eigen::IOFormat CommaInitFmt(Eigen::StreamPrecision, Eigen::DontAlignCols, ", ", ", ", "", "", "[", "]");
-    cout << "\t- fixed ID: "<< config->fixedId << endl;
-    cout << "\t- gravity: " << config->gravity.format(CommaInitFmt) << endl;
-    cout << "\t- imuWait: " << config->imuWait << endl;
-    cout << "\t- featWait: "<< config->featWait << endl;
-    cout << "\t- R_C0toI: " << endl << config->R_C0toI << endl;
-    cout << "\t- p_IinC0: " << endl << config->p_IinC0.transpose() << endl;
+    std::cout << "\t- fixed ID: "<< config->fixedId << std::endl;
+    std::cout << "\t- gravity: " << config->gravity.format(CommaInitFmt) << std::endl;
+    std::cout << "\t- imuWait: " << config->imuWait << std::endl;
+    std::cout << "\t- featWait: "<< config->featWait << std::endl;
+    std::cout << "\t- R_C0toI: " << std::endl << config->R_C0toI << std::endl;
+    std::cout << "\t- p_IinC0: " << std::endl << config->p_IinC0.transpose() << std::endl;
  
-    cout << "Initialization:" << endl;
-    cout << "\t- prior_q_GtoI: " << endl << config->prior_qGtoI.transpose() << endl;
-    cout << "\t- prior_p_IinG: " << endl << config->prior_pIinG.transpose() << endl;
-    cout << "\t- prior_ba: "     << endl << config->prior_ba.transpose() << endl;
-    cout << "\t- prior_bg: "     << endl << config->prior_bg.transpose() << endl;
+    std::cout << "Initialization:" << std::endl;
+    std::cout << "\t- prior_q_GtoI: " << std::endl << config->prior_qGtoI.transpose() << std::endl;
+    std::cout << "\t- prior_p_IinG: " << std::endl << config->prior_pIinG.transpose() << std::endl;
+    std::cout << "\t- prior_ba: "     << std::endl << config->prior_ba.transpose() << std::endl;
+    std::cout << "\t- prior_bg: "     << std::endl << config->prior_bg.transpose() << std::endl;
    
-    cout << "Noise Parameters:" << endl;
-    cout << "\t- sigma_camera:  " << config->sigma_camera << endl;
-    cout << "\t- sigma_a:  " << config->sigma_a << endl;
-    cout << "\t- sigma_g:  " << config->sigma_g << endl;
-    cout << "\t- sigma_wa: " << config->sigma_wa << endl;
-    cout << "\t- sigma_wg: " << config->sigma_wg << endl;
-    cout << "\t- sigma_prior_rotation: "    << config->sigma_prior_rotation << endl;
-    cout << "\t- sigma_prior_translation: " << config->sigma_prior_translation << endl;
-    cout << "\t- sigma_velocity: "          << config->sigma_velocity << endl;
-    cout << "\t- sigma_bias: "              << config->sigma_bias << endl;
-    cout << "\t- sigma_pose_rotation: "     << config->sigma_pose_rotation << endl;
-    cout << "\t- sigma_pose_translation: "  << config->sigma_pose_translation << endl;
+    std::cout << "Noise Parameters:" << std::endl;
+    std::cout << "\t- sigma_camera:  " << config->sigma_camera << std::endl;
+    std::cout << "\t- sigma_a:  " << config->sigma_a << std::endl;
+    std::cout << "\t- sigma_g:  " << config->sigma_g << std::endl;
+    std::cout << "\t- sigma_wa: " << config->sigma_wa << std::endl;
+    std::cout << "\t- sigma_wg: " << config->sigma_wg << std::endl;
+    std::cout << "\t- sigma_prior_rotation: "    << config->sigma_prior_rotation << std::endl;
+    std::cout << "\t- sigma_prior_translation: " << config->sigma_prior_translation << std::endl;
+    std::cout << "\t- sigma_velocity: "          << config->sigma_velocity << std::endl;
+    std::cout << "\t- sigma_bias: "              << config->sigma_bias << std::endl;
+    std::cout << "\t- sigma_pose_rotation: "     << config->sigma_pose_rotation << std::endl;
+    std::cout << "\t- sigma_pose_translation: "  << config->sigma_pose_translation << std::endl;
 }
 
 void setup_subpub(ros::NodeHandle& nh) {
@@ -226,7 +226,7 @@ void optimize_graph(double timestamp) {
     // Ros visualization
     gtsam::State state = graphsolver->get_current_state();
     publish_state(timestamp, state);
-    std::vector<pair<double, gtsam::State>> trajectory = graphsolver->get_trajectory();
+    std::vector<std::pair<double, gtsam::State>> trajectory = graphsolver->get_trajectory();
     publish_trajectory(timestamp, trajectory);
     publish_cloud(timestamp);
 }
