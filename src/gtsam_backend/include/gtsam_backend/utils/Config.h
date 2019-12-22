@@ -10,22 +10,22 @@ public:
   std::string fixedId;
 
   /// Assumed "true" global gravity
-  Eigen::Matrix<double, 3, 1> gravity;
+  Eigen::Matrix<double, 3, 1, Eigen::DontAlign> gravity;
 
   /// Amount of IMU and FEAT we should wait to initialize to
   int imuWait;
   int featWait;
 
   /// Relative transform between CAM0 and IMU
-  Eigen::Matrix<double,3,1> p_IinC0;
-  Eigen::Matrix<double,3,3> R_C0toI;
+  Eigen::Matrix<double,3,1, Eigen::DontAlign> p_IinC0;
+  Eigen::Matrix<double,3,3, Eigen::DontAlign> R_C0toI;
 
   /// Priors
-  Eigen::Vector4d prior_qGtoI;
-  Eigen::Vector3d prior_pIinG;
-  Eigen::Vector3d prior_vIinG;
-  Eigen::Vector3d prior_ba;
-  Eigen::Vector3d prior_bg;
+  Eigen::Matrix<double, 4, 1, Eigen::DontAlign> prior_qGtoI;
+  Eigen::Matrix<double, 3, 1, Eigen::DontAlign> prior_pIinG;
+  Eigen::Matrix<double, 3, 1, Eigen::DontAlign> prior_vIinG;
+  Eigen::Matrix<double, 3, 1, Eigen::DontAlign> prior_ba;
+  Eigen::Matrix<double, 3, 1, Eigen::DontAlign> prior_bg;
   
   /// Noise values for the image
   double sigma_camera; ///< Noise value for CAMERA points
